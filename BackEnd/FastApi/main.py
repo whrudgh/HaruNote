@@ -1,24 +1,30 @@
 from fastapi import FastAPI
 from routes.users import user_router
-from routes.events import event_router
 from contextlib import asynccontextmanager
 from database.connection import conn
-from fastapi.middleware.cors import CORSMiddleware  
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import OAuth2PasswordBearer
+
+# OAuth2PasswordBearer 설정: /user/signin 엔드포인트를 통해 토큰 발급
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/user/signin")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    conn()
+    conn()  # 데이터베이스 연결 초기화
     yield
 
 
+# FastAPI 애플리케이션 생성
 app = FastAPI(lifespan=lifespan)
 
+# 사용자 라우터 등록
 app.include_router(user_router, prefix="/user")
-app.include_router(event_router, prefix="/event")
 
+# CORS 설정: 로컬 프론트엔드와 연동 가능하도록 허용
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["http://localhost:3000"],  # React 등 프론트엔드 도메인 허용
     allow_credentials=True,
     allow_methods=["GET", "POST", "DELETE", "PUT", "OPTIONS"],
     allow_headers=["*"],

@@ -1,6 +1,7 @@
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException, status, Depends
 from auth.authenticate import authenticate
+from auth.jwt_handler import create_jwt_token
 from models.users import Page, User, UserSignIn, UserSignUp
 from database.connection import get_session
 from sqlmodel import select
@@ -22,10 +23,8 @@ async def sign_new_user(data: UserSignUp, session=Depends(get_session)) -> dict:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="동일한 사용자가 존재합니다."
         )
-
     new_user = User(
         email=data.email,
-        # password=data.password,
         password=hash_password.hash_password(data.password),
         username=data.username)
     session.add(new_user)
@@ -51,8 +50,8 @@ def sign_in(data: UserSignIn, session=Depends(get_session)) -> dict:
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="패스워드가 일치하지 않습니다.",
         )
-
-    return {"message": "로그인에 성공했습니다."}
+    access_token = create_jwt_token(email=user.email, user_id=user.id)
+    return {"message": "로그인에 성공했습니다.", "access_token": access_token}
 
 #3.페이지 생성
 @user_router.post("/pages", response_model=Page)
