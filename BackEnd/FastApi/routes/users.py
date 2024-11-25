@@ -12,7 +12,7 @@ hash_password = HashPassword()
 
 
 # 사용자 등록
-@user_router.post("/signup", status_code=status.HTTP_201_CREATED)
+@user_router.post("/Signup", status_code=status.HTTP_201_CREATED)
 async def sign_new_user(data: UserSignUp, session=Depends(get_session)) -> dict:
     statement = select(User).where(User.email == data.email)
     user = session.exec(statement).first()
@@ -34,7 +34,7 @@ async def sign_new_user(data: UserSignUp, session=Depends(get_session)) -> dict:
 
 
 # 로그인 처리
-@user_router.post("/signin")
+@user_router.post("/Signin")
 def sign_in(data: UserSignIn, session=Depends(get_session)) -> dict:
     statement = select(User).where(User.email == data.email)
     user = session.exec(statement).first()
