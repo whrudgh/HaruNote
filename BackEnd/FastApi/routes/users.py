@@ -27,8 +27,7 @@ async def sign_new_user(data: UserSignUp, session=Depends(get_session)) -> dict:
         email=data.email,
         # password=data.password,
         password=hash_password.hash_password(data.password),
-        username=data.username,
-        events=[])
+        username=data.username)
     session.add(new_user)
     session.commit()
 
