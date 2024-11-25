@@ -1,5 +1,6 @@
-from typing import List
+from typing import List, Optional
 from fastapi import APIRouter, HTTPException, status, Depends
+from auth.authenticate import authenticate
 from models.users import Page, User, UserSignIn, UserSignUp
 from database.connection import get_session
 from sqlmodel import select
@@ -56,21 +57,23 @@ def sign_in(data: UserSignIn, session=Depends(get_session)) -> dict:
 
 #3.페이지 생성
 @user_router.post("/pages", response_model=Page)
-def create_page(page: Page, session=Depends(get_session)):
-    # 새로운 페이지 생성 및 DB에 추가
+def create_page(
+    page: Page,
+    session=Depends(get_session),
+    current_user: User = Depends(authenticate)  # 인증된 사용자만 생성 가능
+):
     new_page = Page(
-        id=str(uuid4()),  # 고유 ID 생성
+        id=str(uuid4()),
         title=page.title,
         content=page.content,
-        tags=page.tags,
+        public=page.public,  # 공개 여부 설정
         created_at=datetime.now(),
         updated_at=None,
     )
-    session.add(new_page)  # DB에 추가
-    session.commit()  # 변경 사항 커밋
-    session.refresh(new_page)  # 새로 추가된 객체 갱신
-
-    return new_page  # 새로 추가된 페이지 반환
+    session.add(new_page)
+    session.commit()
+    session.refresh(new_page)
+    return new_page
 
 #4.모든 페이지 조회
 @user_router.get("/pages", response_model=List[Page])
@@ -79,17 +82,21 @@ def get_pages(session=Depends(get_session)):
     return pages
 
 #5.특정 페이지 조회
-@user_router.get("/pages", response_model=List[Page])
-def get_pages(title: str = None, session=Depends(get_session)):
-    if title:
-        # 제목으로 필터링하여 검색
-        filtered_pages = session.query(Page).filter(Page.title == title).all()
-        if not filtered_pages:
-            raise HTTPException(status_code=404, detail="No pages found with the given title")
-        return filtered_pages
-
-    # 제목이 없으면 모든 페이지 반환
-    return session.query(Page).all()
+@user_router.get("/pages/{page_id}", response_model=Page)
+def get_page(
+    page_id: str,
+    session=Depends(get_session),
+    current_user: Optional[User] = Depends(authenticate)
+):
+    page = session.get(Page, page_id)
+    
+    if not page:
+        raise HTTPException(status_code=404, detail="Page not found")
+    
+    if not page.public and not current_user:
+        raise HTTPException(status_code=403, detail="Not authorized to access this page")
+    
+    return page
 
 #6.페이지 수정
 @user_router.put("/pages/{page_id}", response_model=Page)
