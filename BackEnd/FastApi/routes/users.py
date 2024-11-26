@@ -63,14 +63,19 @@ def create_page(
     page: Page,
     session=Depends(get_session),
     current_user: User = Depends(authenticate)  # 인증된 사용자만 생성 가능
+
 ):
+    # 현재 시간을 가져온 뒤 replace()로 수정
+    now = datetime.now()
+    updated_at_date = now.replace(hour=0, minute=0, second=0, microsecond=0)  # 시간 부분을 00:00:00으로 설정
+
     new_page = Page(
         id=str(uuid4()),
         title=page.title,
         content=page.content,
         public=page.public,  # 공개 여부 설정
         created_at=datetime.now(),
-        updated_at=None,
+        updated_at=updated_at_date  # replace()로 수정된 시간 저장
     )
     session.add(new_page)
     session.commit()
@@ -102,7 +107,36 @@ def get_page_by_title(
     
     return page
 
-#6.페이지 수정
+#6.날짜별로 그룹화
+@user_router.get("/pages/calendar-view", response_model=List[dict])
+def get_calendar_view(
+    start_date: datetime,
+    end_date: datetime,
+    session=Depends(get_session),
+):
+    # 지정된 기간 내의 페이지 가져오기
+    pages = (
+        session.query(Page)
+        .filter(Page.updated_at.between(start_date, end_date))
+        .order_by(Page.updated_at.asc())
+        .all()
+    )
+    calendar_data = {}
+    for page in pages:
+        date_key = page.updated_at.date()  # 날짜만 추출
+        if date_key not in calendar_data:
+            calendar_data[date_key] = []
+        calendar_data[date_key].append({
+            "id": page.id,
+            "title": page.title,
+            "content": page.content,
+            "public": page.public,
+        })
+
+    return [{"date": key, "pages": value} for key, value in calendar_data.items()]
+
+
+#7.페이지 수정
 @user_router.put("/pages/{page_id}", response_model=Page)
 def update_page(page_id: str, updated_page: Page, session=Depends(get_session)):
     page = session.query(Page).filter(Page.id == page_id).first()
@@ -112,14 +146,14 @@ def update_page(page_id: str, updated_page: Page, session=Depends(get_session)):
     page.title = updated_page.title
     page.content = updated_page.content
     page.public = updated_page.public
-    page.updated_at = datetime.now()
+    page.created_at = datetime.now()
 
     session.commit()
     session.refresh(page)
     return page
 
 
-#7.페이지 삭제
+#8.페이지 삭제
 @user_router.delete("/pages/{page_id}")
 def delete_page(page_id: str, session=Depends(get_session)):
     page = session.query(Page).filter(Page.id == page_id).first()
@@ -129,3 +163,20 @@ def delete_page(page_id: str, session=Depends(get_session)):
     session.delete(page)
     session.commit()
     return {"message" : "페이지가 삭제되었습니다."}
+
+
+#9.페이지 리스트(제목으로만)로 정렬
+@user_router.get("/pages/titles", response_model=List[str])
+def get_sorted_page_titles(
+    order_by: str = Query("asc", enum=["asc", "desc"], description="정렬 순서: asc(오름차순) 또는 desc(내림차순)"),
+    session: Session = Depends(get_session)):
+    statement = select(Page.title)
+    result = session.exec(statement).all()
+
+    # 정렬
+    if order_by == "asc":
+        sorted_titles = sorted(result)
+    else:
+        sorted_titles = sorted(result, reverse=True)
+
+    return sorted_titles

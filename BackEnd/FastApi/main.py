@@ -3,11 +3,6 @@ from routes.users import user_router
 from contextlib import asynccontextmanager
 from database.connection import conn
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import OAuth2PasswordBearer
-
-# OAuth2PasswordBearer 설정: /user/signin 엔드포인트를 통해 토큰 발급
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/user/signin")
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

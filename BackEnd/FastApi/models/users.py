@@ -33,15 +33,3 @@ class Page(SQLModel, table=True):
     public: bool = Field(default=True)  # 공개 여부 (기본값: True)
     created_at: datetime = Field(default_factory=datetime.now)  # 생성 시간
     updated_at: Optional[datetime] = None  # 수정 시간
-    calendar_id: Optional[int] = Field(default=None, foreign_key="calendar.id")  # 외래 키
-
-    # Calendar와의 관계 (역방향)
-    calendar: Optional["Calendar"] = Relationship(back_populates="pages")
-
-
-class Calendar(SQLModel, table=True):
-    id: int = Field(default=None, primary_key=True)  # Calendar의 기본 키
-    event_date: datetime = Field(index=True)  # 캘린더 날짜
-
-    # Page와의 관계 (양방향)
-    pages: List[Page] = Relationship(back_populates="calendar")
