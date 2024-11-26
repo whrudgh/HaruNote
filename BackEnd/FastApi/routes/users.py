@@ -66,8 +66,6 @@ def create_page(
 
 ):
     # 현재 시간을 가져온 뒤 replace()로 수정
-    now = datetime.now()
-    updated_at_date = now.replace(hour=0, minute=0, second=0, microsecond=0)  # 시간 부분을 00:00:00으로 설정
 
     new_page = Page(
         id=str(uuid4()),
@@ -75,7 +73,7 @@ def create_page(
         content=page.content,
         public=page.public,  # 공개 여부 설정
         created_at=datetime.now(),
-        updated_at=updated_at_date  # replace()로 수정된 시간 저장
+        updated_at=page.updated_at
     )
     session.add(new_page)
     session.commit()
