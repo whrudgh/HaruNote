@@ -1,6 +1,7 @@
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException, status, Depends, Query
 from auth.authenticate import authenticate
+from auth.jwt_handler import create_jwt_token
 from models.users import Page, User, UserSignIn, UserSignUp
 from database.connection import get_session
 from sqlmodel import select
@@ -53,7 +54,8 @@ def sign_in(data: UserSignIn, session=Depends(get_session)) -> dict:
             detail="패스워드가 일치하지 않습니다.",
         )
 
-    return {"message": "로그인에 성공했습니다."}
+    access_token = create_jwt_token(email=user.email, user_id=user.id)
+    return {"message": "로그인에 성공했습니다.", "access_token": access_token}
 
 #3.페이지 생성
 @user_router.post("/pages", response_model=Page)
