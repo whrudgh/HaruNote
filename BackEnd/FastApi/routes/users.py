@@ -1,13 +1,13 @@
 from typing import List, Optional
-from fastapi import APIRouter, HTTPException, status, Depends
+from fastapi import APIRouter, HTTPException, status, Depends, Query
 from auth.authenticate import authenticate
-from auth.jwt_handler import create_jwt_token
 from models.users import Page, User, UserSignIn, UserSignUp
 from database.connection import get_session
 from sqlmodel import select
 from auth.hash_password import HashPassword
 from uuid import uuid4
 from datetime import datetime
+from sqlalchemy.orm import Session
 
 
 user_router = APIRouter()
@@ -23,10 +23,12 @@ async def sign_new_user(data: UserSignUp, session=Depends(get_session)) -> dict:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="동일한 사용자가 존재합니다."
         )
+
     new_user = User(
         email=data.email,
         password=hash_password.hash_password(data.password),
-        username=data.username)
+        username=data.username
+    )
     session.add(new_user)
     session.commit()
 
@@ -50,8 +52,8 @@ def sign_in(data: UserSignIn, session=Depends(get_session)) -> dict:
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="패스워드가 일치하지 않습니다.",
         )
-    access_token = create_jwt_token(email=user.email, user_id=user.id)
-    return {"message": "로그인에 성공했습니다.", "access_token": access_token}
+
+    return {"message": "로그인에 성공했습니다."}
 
 #3.페이지 생성
 @user_router.post("/pages", response_model=Page)
@@ -80,17 +82,19 @@ def get_pages(session=Depends(get_session)):
     return pages
 
 #5.특정 페이지 조회
-@user_router.get("/pages/{page_id}", response_model=Page)
-def get_page(
-    page_id: str,
-    session=Depends(get_session),
+@user_router.get("/pages/", response_model=Page)
+def get_page_by_title(
+    title: str = Query(..., description="조회할 페이지의 제목"),
+    session: Session = Depends(get_session),
     current_user: Optional[User] = Depends(authenticate)
 ):
-    page = session.get(Page, page_id)
+    # 데이터베이스에서 제목으로 페이지 조회
+    page = session.query(Page).filter(Page.title == title).first()
     
     if not page:
         raise HTTPException(status_code=404, detail="Page not found")
     
+    # 페이지가 비공개(public=False)이고 사용자가 인증되지 않은 경우 접근 제한
     if not page.public and not current_user:
         raise HTTPException(status_code=403, detail="Not authorized to access this page")
     
@@ -105,7 +109,6 @@ def update_page(page_id: str, updated_page: Page, session=Depends(get_session)):
 
     page.title = updated_page.title
     page.content = updated_page.content
-    page.tags = updated_page.tags
     page.updated_at = datetime.now()
 
     session.commit()
