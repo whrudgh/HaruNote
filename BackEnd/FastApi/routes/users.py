@@ -111,6 +111,7 @@ def update_page(page_id: str, updated_page: Page, session=Depends(get_session)):
 
     page.title = updated_page.title
     page.content = updated_page.content
+    page.public = updated_page.public
     page.updated_at = datetime.now()
 
     session.commit()
